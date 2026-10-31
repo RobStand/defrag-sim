@@ -1,0 +1,439 @@
+<title>XP Disk Defragmenter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a Luna-era desktop. One app window (title bar, menu bar, volume list, before/after cluster maps, buttons, legend, status bar) on a hill-and-sky wallpaper, taskbar below. */
+:root{
+  --sky-a:#1d56c4; --sky-b:#5a9ae4; --sky-c:#bcdcf6; --hill-a:#56a523; --hill-b:#3b8416;
+  --frame:#0a47e0; --frame-dk:#0831b8; --face:#ece9d8; --face-dk:#aca899; --edge:#7f9db9; --sel:#316ac5;
+  --ink:#000; --ink-dim:#716f64; --white:#fff;
+  --c-frag:#e5525b; --c-contig:#5b8def; --c-sys:#3cc15a; --c-free:#ffffff; --c-hot:#ffd800; --c-pf:#d08a1e; --c-mft:#c9c0e0; --c-pale:#ececec; --grid:#d2d2d2;
+  --ui:Tahoma,Verdana,"DejaVu Sans",Geneva,sans-serif;
+  --title:"Trebuchet MS","Lucida Grande","DejaVu Sans",Tahoma,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:#245edb;color:var(--ink);font:11px/1.3 var(--ui);display:flex;flex-direction:column;overflow:hidden}
+button,select{font:11px var(--ui);color:var(--ink)}
+[hidden]{display:none!important}
+
+/* desktop */
+.desktop{flex:1;min-height:0;overflow:auto;
+  background:
+    radial-gradient(120% 52% at 28% 114%,var(--hill-a) 0 56%,transparent 57%),
+    radial-gradient(130% 46% at 86% 120%,var(--hill-b) 0 56%,transparent 57%),
+    linear-gradient(180deg,var(--sky-a) 0%,var(--sky-b) 52%,var(--sky-c) 100%);}
+.desk-inner{min-height:100%;display:flex;gap:14px;align-items:flex-start;padding-block:18px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.icons{display:flex;flex-direction:column;gap:14px;width:76px;flex:none}
+.dicon{background:none;border:0;color:#fff;text-shadow:1px 1px 1px #000;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 2px;cursor:default;width:76px}
+.dicon:hover,.dicon:focus-visible{background:rgba(49,106,197,.45);outline:1px dotted #fff}
+.dicon svg{width:36px;height:36px}
+.stage{flex:1;min-width:0;display:flex;justify-content:center}
+
+/* window */
+.win{width:min(860px,100%);background:var(--frame);border-radius:8px 8px 0 0;padding:0 3px 3px;position:relative;
+  box-shadow:0 0 0 1px var(--frame-dk),3px 5px 14px rgba(0,0,0,.45)}
+.win.max{width:100%}
+.tb{height:30px;display:flex;align-items:center;gap:6px;padding:0 5px 0 6px;border-radius:7px 7px 0 0;touch-action:none;user-select:none;
+  background:linear-gradient(180deg,#0997ff 0%,#0053ee 8%,#0050ee 40%,#06f 88%,#06f 93%,#005bff 95%,#003dd7 96%,#003dd7 100%)}
+.tb .ico{width:16px;height:16px;flex:none}
+.tt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;font:700 13px var(--title);text-shadow:1px 1px #0f1089}
+.cap{display:flex;gap:2px}
+.cb{width:21px;height:21px;padding:0;border:1px solid #fff;border-radius:3px;cursor:default;
+  background:radial-gradient(circle at 90% 90%,#0054e9 0%,#2263d5 55%,#4479e4 90%,#a3bbec 100%)}
+.cb.x{background:radial-gradient(circle at 90% 90%,#cc4600 0%,#dc6527 55%,#cd7546 90%,#ffccb2 100%)}
+.cb:hover{filter:brightness(1.12)}.cb:active{filter:brightness(.9)}
+.cb svg{display:block;width:19px;height:19px}
+.body{background:var(--face);position:relative}
+
+/* menu bar */
+.menubar{display:flex;position:relative;border-bottom:1px solid #fff;box-shadow:0 1px 0 var(--face-dk);padding:1px 2px}
+.mi{background:none;border:0;padding:3px 8px;cursor:default}
+.mi:hover,.mi.on{background:var(--sel);color:#fff}
+.dd{position:absolute;top:100%;z-index:20;min-width:170px;background:#fff;border:1px solid var(--face-dk);box-shadow:2px 2px 3px rgba(0,0,0,.35);padding:2px}
+.ddi{display:flex;width:100%;gap:6px;align-items:center;background:none;border:0;text-align:left;padding:4px 22px 4px 18px;cursor:default;position:relative}
+.ddi:hover:not(:disabled){background:var(--sel);color:#fff}
+.ddi:disabled{color:var(--face-dk)}
+.ddi .ck{position:absolute;left:5px}
+
+.client{padding:10px 12px}
+.list{height:88px;overflow:auto;background:#fff;border:1px solid var(--edge);margin-bottom:10px}
+table{border-collapse:collapse;width:100%;min-width:818px;table-layout:fixed}
+th{font:11px/1.3 var(--ui);height:20px;text-align:left;font-weight:400;padding:0 6px;border-right:1px solid #d6d2c2;border-bottom:1px solid #d6d2c2;
+  background:linear-gradient(180deg,#fff,#f5f4ea 86%,#ebeadb);position:sticky;top:0}
+td{font:11px/1.3 var(--ui);height:20px;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td.n{text-align:right}th.n{text-align:right}
+tbody tr{cursor:default}
+tbody tr.sel{background:var(--sel);color:#fff}
+tbody tr:focus-visible{outline:1px dotted #000;outline-offset:-2px}
+.vi{display:flex;align-items:center;gap:5px}
+.vi svg{width:16px;height:16px;flex:none}
+
+.plabel{margin:0 0 3px}
+.panel{display:block;width:100%;aspect-ratio:705/329;border:1px solid var(--edge);background:#fff}
+.mh{display:flex;justify-content:space-between;gap:8px;margin:0 0 3px}
+.actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+.spacer{flex:1}
+.btn{min-width:75px;height:23px;padding:0 12px;border:1px solid #003c74;border-radius:3px;
+  background:linear-gradient(180deg,#fff 0%,#ecebe5 86%,#d8d0c4 100%)}
+.btn:hover:not(:disabled){box-shadow:inset -1px 1px #fff0cf,inset 1px 2px #fdd889,inset -2px 2px #fbc761,inset 2px -2px #e5a01a}
+.btn:active:not(:disabled){background:linear-gradient(180deg,#cdcac3,#e3e3db 20%,#e5e5de)}
+.btn:focus-visible{outline:1px dotted #000;outline-offset:-4px}
+.btn.def{box-shadow:inset -1px 1px #cee7ff,inset 1px 2px #98b8ea,inset -2px 2px #bce5fc,inset 2px -2px #7ba2e7}
+.btn:disabled{color:var(--face-dk);border-color:#c9c7ba;background:#f4f2e8}
+select{height:21px;border:1px solid var(--edge);background:#fff;padding:0 2px}
+.sp{display:flex;gap:6px;align-items:center}
+.legend{list-style:none;margin:10px 0 0;padding:7px 8px;gap:6px 14px;border:1px solid var(--face-dk);border-radius:3px}
+.legend li{display:flex;align-items:center;gap:5px}
+.legend i{width:11px;height:11px;display:block;border:1px solid rgba(0,0,0,.25)}
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+
+.status{display:flex;gap:8px;align-items:center;padding:2px 8px 3px;border-top:1px solid var(--face-dk);box-shadow:inset 0 1px #fff;height:22px}
+.status>span:first-child{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog{width:150px;height:14px;border:1px solid #686868;border-radius:2px;background:#fff;padding:1px;overflow:hidden;visibility:hidden}
+.prog.on{visibility:visible}
+.prog i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,#2fc335 0 7px,transparent 7px 9px)}
+#stTime{min-width:38px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* dialogs */
+.dlg{position:absolute;z-index:30;left:50%;top:70px;transform:translateX(-50%);width:min(340px,92%);background:var(--frame);border-radius:8px 8px 0 0;padding:0 3px 3px;box-shadow:2px 4px 12px rgba(0,0,0,.5)}
+.dlg.wide{width:min(480px,94%);top:34px}
+.dlg .tb{height:26px}
+.dlg .tt{font-size:12px}
+.dlg .cb{width:19px;height:19px}.dlg .cb svg{width:17px;height:17px}
+.dbody{background:var(--face);padding:14px 14px 12px}
+.drow{display:flex;gap:12px;align-items:flex-start}
+.drow svg{width:32px;height:32px;flex:none}
+.dbtns{display:flex;gap:6px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.rep{height:300px;overflow:auto;background:#fff;border:1px solid var(--edge);padding:6px 8px}
+.rl{padding-left:16px}.rl.h{padding-left:0;font-weight:700;margin-top:7px}.rl.h:first-child{margin-top:0}
+.rt{display:grid;grid-template-columns:62px 80px 1fr;gap:1px 8px;padding-left:16px}
+.rt b{font-weight:700;border-bottom:1px solid #d6d2c2}
+.rt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* taskbar */
+.taskbar{height:30px;flex:none;background:linear-gradient(180deg,#245edb 0%,#3f8cf3 9%,#245edb 18%,#245edb 92%,#1941a5 100%);position:relative}
+.tbi{height:100%;display:flex;align-items:stretch;gap:8px;padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+.start{border:0;padding:0 22px 0 14px;border-radius:0 12px 12px 0;color:#fff;font:italic 700 18px var(--title);text-shadow:1px 1px 2px #1e4a14;letter-spacing:.5px;
+  background:linear-gradient(180deg,#5cc05c 0%,#3c9e3c 14%,#3a9a3a 55%,#2d7d2d 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),2px 0 3px rgba(0,0,0,.4)}
+.start:hover{filter:brightness(1.08)}
+.twin{align-self:center;height:24px;width:min(170px,40%);min-width:0;border:1px solid #1b4fb8;border-radius:3px;color:#fff;text-align:left;padding:0 8px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;
+  background:linear-gradient(180deg,#5f9bf5,#3c81f3 50%,#2f6fe0)}
+.twin.act{background:linear-gradient(180deg,#1b4aa8,#1e52b7);box-shadow:inset 1px 1px 3px rgba(0,0,0,.45)}
+.twin svg{width:14px;height:14px;flex:none}
+.tray{margin-left:auto;display:flex;align-items:center;padding:0 12px;color:#fff;border-left:1px solid #0b3b94;background:linear-gradient(180deg,#0f9bef,#1290e8 6%,#0f84e0 50%,#0a6fcb);box-shadow:inset 1px 0 #3bb2f4}
+.smenu{position:absolute;left:0;bottom:30px;width:min(250px,100%);background:#fff;border:2px solid #245edb;border-bottom:0;border-radius:6px 6px 0 0;z-index:40;overflow:hidden;box-shadow:2px -2px 8px rgba(0,0,0,.4)}
+.smenu .sh{background:linear-gradient(180deg,#2a6cf0,#1c4fc4);color:#fff;font:700 14px var(--title);padding:10px 12px;text-shadow:1px 1px #0b2f8a}
+.smenu button{display:flex;width:100%;align-items:center;gap:8px;background:none;border:0;padding:8px 12px;text-align:left;font-size:12px}
+.smenu button:hover{background:var(--sel);color:#fff}
+.smenu svg{width:22px;height:22px}
+
+@media (max-width:820px){.desk-inner{flex-direction:column;align-items:stretch;gap:8px}.icons{flex-direction:row;width:auto;gap:8px}.stage{flex:none}}
+@media (max-width:520px){.client{padding:8px}.tray{padding:0 8px}.start{padding:0 16px 0 10px}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+<div class="desktop" id="desktop">
+ <div class="desk-inner">
+  <div class="icons">
+   <button class="dicon" id="icoBin" type="button"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M9 11h18l-2 21H11z" fill="#dfe8f2" stroke="#6b7f99" stroke-width="1.5"/><path d="M7 8h22v3H7z" fill="#b9c8dc" stroke="#6b7f99" stroke-width="1.5"/><path d="M14 14l1 15M18 14v15M22 14l-1 15" stroke="#6b7f99"/></svg><span>Recycle Bin</span></button>
+   <button class="dicon" id="icoDef" type="button"><svg viewBox="0 0 36 36" aria-hidden="true"><rect x="3" y="6" width="30" height="24" rx="2" fill="#fff" stroke="#315a9e" stroke-width="1.5"/><g><rect x="6" y="9" width="5" height="5" fill="#5b8def"/><rect x="12" y="9" width="5" height="5" fill="#e5525b"/><rect x="18" y="9" width="5" height="5" fill="#5b8def"/><rect x="24" y="9" width="5" height="5" fill="#e5525b"/><rect x="6" y="15" width="5" height="5" fill="#e5525b"/><rect x="12" y="15" width="5" height="5" fill="#5b8def"/><rect x="18" y="15" width="5" height="5" fill="#5b8def"/><rect x="6" y="21" width="5" height="5" fill="#5b8def"/><rect x="12" y="21" width="5" height="5" fill="#5b8def"/></g></svg><span>Disk Defragmenter</span></button>
+  </div>
+  <div class="stage">
+   <div class="win" id="win" role="application" aria-label="Disk Defragmenter">
+    <div class="tb" id="tb">
+     <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="2" width="14" height="12" rx="1" fill="#fff" stroke="#173f9c"/><rect x="3" y="4" width="3" height="3" fill="#5b8def"/><rect x="7" y="4" width="3" height="3" fill="#e5525b"/><rect x="11" y="4" width="2" height="3" fill="#5b8def"/><rect x="3" y="8" width="3" height="3" fill="#e5525b"/><rect x="7" y="8" width="3" height="3" fill="#5b8def"/></svg>
+     <span class="tt">Disk Defragmenter</span>
+     <div class="cap">
+      <button class="cb" id="bMin" type="button" aria-label="Minimize"><svg viewBox="0 0 21 21"><rect x="5" y="14" width="8" height="3" fill="#fff"/></svg></button>
+      <button class="cb" id="bMax" type="button" aria-label="Maximize"><svg viewBox="0 0 21 21"><rect x="5.5" y="5.5" width="10" height="10" fill="none" stroke="#fff" stroke-width="2"/><rect x="5" y="5" width="11" height="3.5" fill="#fff"/></svg></button>
+      <button class="cb x" id="bClose" type="button" aria-label="Close"><svg viewBox="0 0 21 21"><path d="M6 6l9 9M15 6l-9 9" stroke="#fff" stroke-width="2.4" stroke-linecap="square"/></svg></button>
+     </div>
+    </div>
+    <div class="body">
+     <nav class="menubar" id="menubar" aria-label="Menu"></nav>
+     <div class="client">
+      <div class="actions">
+       <button class="btn def" id="bAn" type="button">Analyze</button>
+       <button class="btn" id="bDf" type="button">Defragment</button>
+       <button class="btn" id="bPa" type="button">Pause</button>
+       <button class="btn" id="bSt" type="button">Stop</button>
+       <button class="btn" id="bRp" type="button">View Report</button>
+       <span class="spacer"></span>
+       <label class="sp" for="speed">Speed <select id="speed"><option value="25" selected>Slow</option><option value="90">Normal</option><option value="300">Fast</option><option value="1400">Turbo</option></select></label>
+      </div>
+      <div class="list" id="listWrap">
+       <table aria-label="Volumes">
+        <colgroup><col style="width:46px"><col style="width:108px"><col style="width:98px"><col style="width:54px"><col style="width:84px"><col style="width:78px"><col style="width:106px"><col style="width:84px"><col style="width:84px"><col style="width:76px"></colgroup>
+        <thead><tr><th>Drive</th><th>Name</th><th>Action</th><th class="n">Status</th><th class="n">Total files</th><th class="n">Frag. files</th><th class="n">Fragmentation</th><th class="n">Size</th><th class="n">Free</th><th>File system</th></tr></thead>
+        <tbody id="vols"></tbody>
+       </table>
+      </div>
+      <div class="mh"><span id="mapTitle">C: clusters/block</span><span id="mapPct">0 %</span></div>
+      <canvas id="cv" class="panel" role="img" aria-label="Disk cluster map"></canvas>
+      <ul class="legend">
+       <li><i style="background:var(--c-contig)"></i>Allocated</li>
+       <li><i style="background:var(--c-frag)"></i>Fragmented</li>
+       <li><i style="background:var(--c-hot)"></i>Being processed</li>
+       <li><i style="background:var(--c-pf)"></i>Paging file</li>
+       <li><i style="background:var(--c-sys)"></i>META-Data</li>
+       <li><i style="background:var(--c-mft)"></i>Reserved for MFT</li>
+       <li><i style="background:var(--c-free)"></i>Free space</li>
+      </ul>
+     </div>
+     <div class="status"><span id="stText">Ready</span><div class="prog" id="progBox"><i id="prog"></i></div><span id="stTime">0:00</span></div>
+     <div class="dlg" id="dlg" hidden role="dialog" aria-modal="true"></div>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+<div class="taskbar">
+ <div class="smenu" id="smenu" hidden>
+  <div class="sh">Owner</div>
+  <button type="button" id="smDef"><svg viewBox="0 0 36 36" aria-hidden="true"><rect x="3" y="6" width="30" height="24" rx="2" fill="#fff" stroke="#315a9e" stroke-width="2"/><rect x="7" y="10" width="7" height="7" fill="#5b8def"/><rect x="16" y="10" width="7" height="7" fill="#e5525b"/><rect x="7" y="19" width="7" height="7" fill="#e5525b"/></svg>Disk Defragmenter</button>
+  <button type="button" id="smAbout"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="14" fill="#2d6fe0" stroke="#fff" stroke-width="2"/><path d="M18 16v9" stroke="#fff" stroke-width="3"/><circle cx="18" cy="11" r="2" fill="#fff"/></svg>About this simulator</button>
+ </div>
+ <div class="tbi">
+  <button class="start" id="startBtn" type="button">start</button>
+  <button class="twin act" id="twin" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="2" width="14" height="12" rx="1" fill="#fff"/><rect x="3" y="4" width="4" height="4" fill="#5b8def"/><rect x="8" y="4" width="4" height="4" fill="#e5525b"/></svg><span>Disk Defragmenter</span></button>
+  <div class="tray" id="clock">7:42 AM</div>
+ </div>
+</div>
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)};
+var cs=getComputedStyle(document.documentElement),tok=function(n){return cs.getPropertyValue(n).trim()};
+var COLS=88,ROWS=41,N=COLS*ROWS,P=8,W=COLS*P+1,H=ROWS*P+1;
+/* cell codes: 0 unscanned, 1 free, 2 allocated, 3 fragmented, 4 meta-data, 5 being processed, 6 paging file, 7 MFT zone */
+var PAL=[tok('--c-pale'),tok('--c-free'),tok('--c-contig'),tok('--c-frag'),tok('--c-sys'),tok('--c-hot'),tok('--c-pf'),tok('--c-mft')];
+var GRID=tok('--grid');
+
+var VOLS=[
+ {letter:'C',name:'Local Disk',fs:'NTFS',cap:74.5,seed:20051,fill:.64,clump:36,contig:.05,chunk:3,skew:3.2,maxSize:40,scale:331,mft:3,pf:true},
+ {letter:'D',name:'Data',fs:'NTFS',cap:111.8,seed:77123,fill:.42,clump:14,contig:.1,chunk:3,skew:3,maxSize:36,scale:412,mft:2},
+ {letter:'E',name:'Backup',fs:'FAT32',cap:37.2,seed:31337,fill:.81,clump:20,contig:.02,chunk:3,skew:2.6,maxSize:34,scale:187,mft:0}
+];
+var POOL_C=['pagefile.sys','hiberfil.sys','Documents and Settings\\Owner\\My Documents\\My Videos\\Holiday 2004.avi','Documents and Settings\\Owner\\Local Settings\\Application Data\\Microsoft\\Outlook\\outlook.pst','WINDOWS\\Driver Cache\\i386\\driver.cab','WINDOWS\\system32\\config\\software','Program Files\\Adobe\\Photoshop 7.0\\Photoshop.exe','WINDOWS\\Installer\\5c3e1a.msi','Documents and Settings\\Owner\\My Documents\\My Music\\Disc Rip\\Track 07.wav','WINDOWS\\SoftwareDistribution\\Download\\sp2.exe','Program Files\\Microsoft Office\\OFFICE11\\WINWORD.EXE','WINDOWS\\system32\\config\\system'];
+var POOL_D=['Photos\\2004\\Wedding\\IMG_0412.tif','Video\\Camcorder\\tape03.avi','Music\\Mixes\\Friday Night.wav','Software\\Visual Studio .NET\\vs_net.iso','Games\\Install\\disc1.bin','Backup\\Documents.zip','Photos\\2003\\Trip\\panorama.psd','Video\\Rips\\Concert.avi'];
+var DIRS=['WINDOWS\\Temp','Documents and Settings\\Owner\\My Documents','Program Files\\Common Files','WINDOWS\\system32','Documents and Settings\\Owner\\Local Settings\\Temp'];
+var EXTS=['tmp','dll','doc','jpg','dat','log','mp3','xls'];
+
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function runsOf(D,f){var a=[],q,r=1;for(q=0;q<f.n;q++)a.push(D.slotOf[f.start+q]);a.sort(function(x,y){return x-y});
+ for(q=1;q<a.length;q++){if(a[q]-a[q-1]-1!==D.cum[a[q]]-D.cum[a[q-1]+1])r++;}return r}
+
+function gen(V){
+ var r=rng(V.seed),sys=new Uint8Array(N),i,k,s,l;
+ var mft=Math.round(N*.03);for(i=0;i<mft;i++)sys[i]=2;
+ for(k=0;k<V.clump;k++){s=Math.floor(r()*N);l=1+Math.floor(r()*3);for(i=0;i<l&&s+i<N;i++)if(!sys[s+i])sys[s+i]=1;}
+ var cum=new Int32Array(N+1),nonSys=[];
+ for(i=0;i<N;i++){cum[i+1]=cum[i]+(sys[i]?1:0);if(!sys[i])nonSys.push(i);}
+ var M=nonSys.length,target=Math.round(M*V.fill),files=[],tot=0,L=0,n;
+ while(tot<target){n=1+Math.floor(Math.pow(r(),V.skew)*V.maxSize);if(tot+n>target)n=target-tot;files.push({id:files.length,start:L,n:n});L+=n;tot+=n;}
+ var items=[];
+ files.forEach(function(f){var rem=f.n,len;if(f.n===1||r()<V.contig){items.push({f:f.id,len:rem});return}
+  while(rem>0){len=Math.min(rem,1+Math.floor(r()*V.chunk));items.push({f:f.id,len:len});rem-=len}});
+ var freeRem=M-target,nf=Math.max(1,Math.round(items.length*.7)),w=[],sw=0,left=freeRem,x;
+ for(i=0;i<nf;i++){x=.15-Math.log(1-r());w.push(x);sw+=x}
+ w.forEach(function(x){var len=Math.floor(freeRem*x/sw);if(len>0){items.push({f:-1,len:len});left-=len}});
+ if(left>0)items.push({f:-1,len:left});
+ for(i=items.length-1;i>0;i--){var j=Math.floor(r()*(i+1)),t=items[i];items[i]=items[j];items[j]=t}
+ var blockAt=new Int32Array(N),slotOf=new Int32Array(L),fileOf=new Int32Array(L),nx=new Int32Array(files.length),pos=0;
+ for(i=0;i<N;i++)blockAt[i]=sys[i]?-2:-1;
+ items.forEach(function(it){for(var q=0;q<it.len;q++){var slot=nonSys[pos++];
+  if(it.f<0){blockAt[slot]=-1}else{var lb=files[it.f].start+nx[it.f]++;blockAt[slot]=lb;slotOf[lb]=slot}}});
+ files.forEach(function(f){for(var q=0;q<f.n;q++)fileOf[f.start+q]=f.id});
+ var cellMB=V.cap*1024/N,ord=files.slice().sort(function(a,b){return b.n-a.n}),pool=V.pf?POOL_C:POOL_D;
+ ord.forEach(function(f,idx){f.mb=f.n*cellMB*(.6+.4*r());
+  f.name=V.letter+':\\'+(idx<pool.length?pool[idx]:DIRS[Math.floor(r()*DIRS.length)]+'\\'+('00000'+f.id).slice(-5)+'.'+EXTS[Math.floor(r()*EXTS.length)])});
+ var D={sys:sys,cum:cum,nonSys:nonSys,files:files,blockAt:blockAt,slotOf:slotOf,fileOf:fileOf,runs:new Int32Array(files.length),used:target,pf:V.pf?ord[0].id:-1};
+ files.forEach(function(f){D.runs[f.id]=runsOf(D,f)});
+ return D;
+}
+function code(D,s){var b=D.blockAt[s];if(b===-2)return D.sys[s]===2?7:4;if(b===-1)return 1;var f=D.fileOf[b];return f===D.pf?6:(D.runs[f]>1?3:2)}
+
+function calc(V){var D=V.d,tr=0,ex=0,ff=0,i,r;
+ for(i=0;i<D.files.length;i++){r=D.runs[i];tr+=r;ex+=r-1;if(r>1)ff++}
+ var free=0,run=0,big=0;
+ for(i=0;i<N;i++){if(D.blockAt[i]===-2)continue;if(D.blockAt[i]===-1){free++;run++}else{if(run>big)big=run;run=0}}
+ if(run>big)big=run;
+ var fp=tr?100*ex/tr:0,sp=free?100*(1-big/free):0,uf=D.used/Math.max(1,D.used+free);
+ return {tr:tr,ex:ex,ff:ff,free:free,fp:fp,sp:sp,total:Math.round(fp*uf+sp*(1-uf)),nf:D.files.length};
+}
+
+/* simulation step: compact files in order, evicting whatever sits in the way into the nearest free cell */
+var NOW=0,rate=25,hot=new Map();
+function ttl(){return Math.max(60,Math.min(320,1200/rate))}
+function move(D,from,to){var b=D.blockAt[from],f=D.fileOf[b];D.blockAt[from]=-1;D.blockAt[to]=b;D.slotOf[b]=to;D.runs[f]=runsOf(D,D.files[f]);
+ var e=NOW+ttl();hot.set(from,e);hot.set(to,e)}
+function step(V){var D=V.d,t,f;
+ while(V.i<V.used&&D.slotOf[V.i]===D.nonSys[V.i])V.i++;
+ if(V.i>=V.used)return false;
+ t=D.nonSys[V.i];
+ var from;
+ if(D.blockAt[t]===-1){from=D.slotOf[V.i];V.seek=Math.abs(from-V.head);V.head=t;move(D,from,t);V.i++}
+ else{f=t+1;while(D.blockAt[f]!==-1)f++;V.seek=Math.abs(t-V.head);V.head=f;move(D,t,f)}
+ return true}
+
+/* state */
+var running=null,sel=VOLS[0],dirty=true,soundOn=false,last=0;
+function initVol(V){if(!V.base)V.base={chunk:V.chunk,contig:V.contig,fill:V.fill};var B=V.base;
+ V.seed=(Math.random()*4294967296)>>>0;V.chunk=Math.max(2,B.chunk+Math.floor(Math.random()*3)-1);V.contig=B.contig*(.4+Math.random()*1.2);V.fill=B.fill+(Math.random()-.5)*.1;
+ V.d=gen(V);V.mode=null;V.paused=false;V.scan=N;V.i=0;V.used=V.d.used;V.wait=0;V.seek=0;V.head=0;V.el=0;V.m=calc(V)}
+VOLS.forEach(initVol);
+
+var cv=$('#cv'),ctx=cv.getContext('2d'),dpr=Math.min(window.devicePixelRatio||1,2);
+cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+
+function draw(){var V=sel,D=V.d,c=ctx,lk=-1,s,k,h;
+ c.setTransform(cv.width/W,0,0,cv.height/H,0,0);c.fillStyle=GRID;c.fillRect(0,0,W,H);
+ for(s=0;s<N;s++){
+  if(V.mode==='analyze'&&s>=V.scan)k=0;else{h=hot.get(s);k=(h&&h>NOW)?5:code(D,s)}
+  if(k!==lk){c.fillStyle=PAL[k];lk=k}
+  c.fillRect((s%COLS)*P+1,((s/COLS)|0)*P+1,P-1,P-1)}}
+
+/* volume list */
+var tbody=$('#vols');
+function gb(x){return x.toFixed(2)+' GB'}
+function n0(x){return x.toLocaleString('en-US')}
+VOLS.forEach(function(V,i){var tr=document.createElement('tr');tr.tabIndex=0;V.tr=tr;V.tds=[];
+ for(var q=0;q<10;q++){var td=document.createElement('td');if(q===3||(q>3&&q<9))td.className='n';tr.appendChild(td);V.tds.push(td)}
+ tr.addEventListener('click',function(){pick(V)});
+ tr.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(V)}
+  if(e.key==='ArrowDown'&&VOLS[i+1]){VOLS[i+1].tr.focus()}if(e.key==='ArrowUp'&&VOLS[i-1]){VOLS[i-1].tr.focus()}});
+ tbody.appendChild(tr)});
+function pick(V){if(running||V===sel)return;sel=V;hot.clear();dirty=true}
+function setT(td,t){if(td.textContent!==t)td.textContent=t}
+function pct(V){return V.mode==='analyze'?Math.floor(100*V.scan/N):V.mode==='defrag'?Math.floor(100*V.i/Math.max(1,V.used)):0}
+function fmtT(ms){var s=Math.floor(ms/1000);return Math.floor(s/60)+':'+('0'+s%60).slice(-2)}
+function rows(){VOLS.forEach(function(V){var m=V.m,t=V.tds,fr=m.free/N;
+ setT(t[0],V.letter+':');setT(t[1],V.name);
+ setT(t[2],V.mode?(V.paused?'Paused':V.mode==='analyze'?'Analyzing':'Defragmenting'):'Ready');
+ setT(t[3],pct(V)+'%');setT(t[4],n0(m.nf*V.scale+7));setT(t[5],n0(m.ff*V.scale));
+ setT(t[6],m.fp.toFixed(2)+'%');setT(t[7],gb(V.cap));setT(t[8],gb(V.cap*fr));setT(t[9],V.fs);
+ V.tr.className=V===sel?'sel':''})}
+var B={an:$('#bAn'),df:$('#bDf'),pa:$('#bPa'),st:$('#bSt'),rp:$('#bRp')};
+function ui(){var V=sel,r=!!running;rows();
+ B.an.disabled=r;B.df.disabled=r;B.pa.disabled=!r;B.st.disabled=!r;B.rp.disabled=r;
+ B.pa.textContent=r&&running.paused?'Resume':'Pause';
+ $('#mapTitle').textContent=V.letter+': '+n0(Math.round(V.cap*262144/N))+' clusters/block';
+ var p=pct(V);$('#mapPct').textContent=(V.mode?p:0)+' %';
+ $('#progBox').className='prog'+(V.mode?' on':'');$('#prog').style.width=(V.mode?p:0)+'%';
+ $('#stText').textContent=r?(running.paused?'Paused':(running.mode==='analyze'?'Analyzing ':'Defragmenting ')+running.name+' ('+running.letter+':)…'):'Ready';
+ $('#stTime').textContent=fmtT(V.el);
+ var m=V.m;cv.setAttribute('aria-label',V.name+' ('+V.letter+':) cluster map, '+m.fp.toFixed(0)+' percent of file fragments are excess')}
+
+/* actions */
+function doAnalyze(){if(running)return;var V=sel;V.mode='analyze';V.scan=0;V.paused=false;V.el=0;running=V;hot.clear();dirty=true}
+function doDefrag(){if(running)return;var V=sel;V.mode='defrag';V.i=0;V.used=V.d.used;V.wait=0;V.seek=0;V.head=0;V.paused=false;V.el=0;running=V;dirty=true}
+function doPause(){if(running){running.paused=!running.paused;dirty=true}}
+function doStop(){if(!running)return;var V=running;if(V.mode==='analyze')V.scan=N;V.mode=null;V.paused=false;running=null;V.m=calc(V);dirty=true}
+function endAnalyze(V){V.mode=null;running=null;V.m=calc(V);dirty=true;
+ var need=V.m.total>=10;
+ dlg({title:'Disk Defragmenter',html:'<div class="drow">'+INFO+'<div><p style="margin:0 0 10px">Analysis is complete for: '+V.name+' ('+V.letter+':)</p><p style="margin:0"><b>'+(need?'You should defragment this volume.':'You do not need to defragment this volume.')+'</b></p></div></div>',
+  btns:[{l:'View Report',fn:doReport},{l:'Defragment',def:need,fn:doDefrag},{l:'Close',def:!need}]})}
+function endDefrag(V){V.mode=null;running=null;V.m=calc(V);hot.clear();dirty=true;
+ dlg({title:'Disk Defragmenter',html:'<div class="drow">'+INFO+'<div><p style="margin:0">Defragmentation is complete for: '+V.name+' ('+V.letter+':).</p></div></div>',
+  btns:[{l:'View Report',fn:doReport},{l:'Close',def:true}]})}
+
+/* report */
+function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function fmtMB(mb){return mb>=1024?(mb/1024).toFixed(2)+' GB':Math.max(1,Math.round(mb))+' MB'}
+function doReport(){var V=sel,m=calc(V),D=V.d,sc=V.scale,fr=m.free/N,used=V.cap*(1-fr),nF=m.nf*sc+7,i;
+ function r(t){return '<div class="rl">'+t+'</div>'}function h(t){return '<div class="rl h">'+t+'</div>'}
+ var o=h('Volume '+V.name+' ('+V.letter+':)')+r('Volume size = '+V.cap.toFixed(1)+' GB')+r('Cluster size = 4 KB')+r('Used space = '+used.toFixed(2)+' GB')+r('Free space = '+(V.cap*fr).toFixed(2)+' GB')+r('Percent free space = '+Math.round(fr*100)+' %');
+ o+=h('Volume fragmentation')+r('Total fragmentation = '+m.total+' %')+r('File fragmentation = '+Math.round(m.fp)+' %')+r('Free space fragmentation = '+Math.round(m.sp)+' %');
+ o+=h('File fragmentation')+r('Total files = '+n0(nF))+r('Average file size = '+Math.round(used*1048576/nF)+' KB')+r('Total fragmented files = '+n0(m.ff*sc))+r('Total excess fragments = '+n0(m.ex*sc))+r('Average fragments per file = '+(1+m.ex/m.nf).toFixed(2));
+ if(D.pf>=0)o+=h('Pagefile fragmentation')+r('Pagefile size = '+fmtMB(D.files[D.pf].mb))+r('Total fragments = '+D.runs[D.pf]);
+ o+=h('Directory fragmentation')+r('Total directories = '+n0(Math.round(nF*.055)))+r('Fragmented directories = '+n0(Math.round(m.ff*sc*.012)))+r('Excess directory fragments = '+n0(Math.round(m.ex*sc*.011)));
+ if(V.fs==='NTFS')o+=h('Master File Table (MFT) fragmentation')+r('Total MFT size = '+Math.round(V.cap*.55)+' MB')+r('MFT record count = '+n0(nF+Math.round(nF*.04)))+r('Percent MFT in use = 99 %')+r('Total MFT fragments = '+V.mft);
+ var fl=D.files.filter(function(f){return D.runs[f.id]>1}).sort(function(a,b){return D.runs[b.id]-D.runs[a.id]||b.n-a.n}).slice(0,12);
+ o+='<div class="rl h">Most fragmented files</div>';
+ if(fl.length){o+='<div class="rt"><b>Fragments</b><b>File Size</b><b>File name</b>';
+  fl.forEach(function(f){o+='<span>'+D.runs[f.id]+'</span><span>'+fmtMB(f.mb)+'</span><span title="'+esc(f.name)+'">'+esc(f.name)+'</span>'});o+='</div>'}
+ else o+=r('None. No file on this volume is fragmented.');
+ dlg({wide:true,title:(m.ex===0?'Defragmentation':'Analysis')+' Report',html:'<div class="rep">'+o+'</div>',
+  btns:[{l:'Defragment',def:true,off:!!running,fn:doDefrag},{l:'Close'}]})}
+
+/* dialogs */
+var INFO='<svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="#2d6fe0" stroke="#fff" stroke-width="2"/><path d="M18 16v10" stroke="#fff" stroke-width="3.4"/><circle cx="18" cy="10.5" r="2.2" fill="#fff"/></svg>';
+var dlgEl=$('#dlg'),lastF=null;
+function dlg(o){lastF=document.activeElement;dlgEl.className='dlg'+(o.wide?' wide':'');
+ dlgEl.innerHTML='<div class="tb"><span class="tt">'+o.title+'</span><div class="cap"><button class="cb x" type="button" aria-label="Close" data-x><svg viewBox="0 0 21 21"><path d="M6 6l9 9M15 6l-9 9" stroke="#fff" stroke-width="2.4" stroke-linecap="square"/></svg></button></div></div><div class="dbody">'+o.html+'<div class="dbtns"></div></div>';
+ var bx=dlgEl.querySelector('.dbtns'),def=null;
+ o.btns.forEach(function(b){var e=document.createElement('button');e.type='button';e.className='btn'+(b.def?' def':'');e.textContent=b.l;if(b.off)e.disabled=true;
+  e.onclick=function(){closeDlg();if(b.fn)b.fn()};bx.appendChild(e);if(b.def&&!b.off)def=e});
+ dlgEl.querySelector('[data-x]').onclick=closeDlg;dlgEl.hidden=false;(def||bx.firstChild).focus()}
+function closeDlg(){dlgEl.hidden=true;dlgEl.innerHTML='';if(lastF&&lastF.focus){try{lastF.focus()}catch(e){}}}
+function about(){dlg({title:'About Disk Defragmenter',html:'<div class="drow">'+INFO+'<div><p style="margin:0 0 8px"><b>Disk Defragmenter (simulation)</b></p><p style="margin:0 0 8px">Nothing here touches a real disk. The three volumes are made up, and the map moves blocks with a simple compaction pass: each file is packed to the front, and anything in the way is nudged to the nearest free cell.</p><p style="margin:0">Turn on Disk noise in the View menu for the seek clicks.</p></div></div>',btns:[{l:'OK',def:true}]})}
+
+/* buttons */
+B.an.onclick=doAnalyze;B.df.onclick=doDefrag;B.pa.onclick=doPause;B.st.onclick=doStop;B.rp.onclick=doReport;
+$('#speed').onchange=function(e){rate=+e.target.value};
+
+/* menus */
+var mb=$('#menubar'),openIdx=-1,ddEl=null;
+var MENUS=[['File',function(){return[{l:'Exit',fn:closeWin}]}],
+ ['Action',function(){var s=!!running;return[{l:'Analyze',off:s,fn:doAnalyze},{l:'Defragment',off:s,fn:doDefrag},{l:s&&running.paused?'Resume':'Pause',off:!s,fn:doPause},{l:'Stop',off:!s,fn:doStop},{l:'View Report',off:s,fn:doReport}]}],
+ ['View',function(){return[{l:'Disk noise',ck:soundOn,fn:function(){soundOn=!soundOn}}]}],
+ ['Help',function(){return[{l:'About Disk Defragmenter',fn:about}]}]];
+var mis=MENUS.map(function(m,i){var b=document.createElement('button');b.type='button';b.className='mi';b.textContent=m[0];
+ b.onclick=function(e){e.stopPropagation();openIdx===i?closeMenu():openMenu(i)};
+ b.onpointerenter=function(){if(openIdx>=0&&openIdx!==i)openMenu(i)};mb.appendChild(b);return b});
+function closeMenu(){if(ddEl){ddEl.remove();ddEl=null}if(openIdx>=0)mis[openIdx].classList.remove('on');openIdx=-1}
+function openMenu(i){closeMenu();openIdx=i;mis[i].classList.add('on');ddEl=document.createElement('div');ddEl.className='dd';ddEl.style.left=mis[i].offsetLeft+'px';
+ MENUS[i][1]().forEach(function(it){var b=document.createElement('button');b.type='button';b.className='ddi';b.disabled=!!it.off;
+  b.innerHTML=(it.ck?'<span class="ck">✓</span>':'')+it.l;b.onclick=function(e){e.stopPropagation();closeMenu();it.fn()};ddEl.appendChild(b)});
+ mb.appendChild(ddEl)}
+document.addEventListener('pointerdown',function(e){if(!e.target.closest('.menubar'))closeMenu();if(!e.target.closest('#smenu,#startBtn'))$('#smenu').hidden=true});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeMenu();if(!dlgEl.hidden)closeDlg();$('#smenu').hidden=true}});
+
+/* window chrome */
+var win=$('#win'),twin=$('#twin'),dx=0,dy=0,Z=1;
+function place(){win.style.transform=win.classList.contains('max')?'none':'translate('+(dx/Z)+'px,'+(dy/Z)+'px)'}
+function openWin(){win.hidden=false;twin.hidden=false;twin.classList.add('act');$('#smenu').hidden=true;dirty=true}
+function minWin(){win.hidden=!win.hidden;twin.classList.toggle('act',!win.hidden)}
+function closeWin(){running=null;VOLS.forEach(initVol);sel=VOLS[0];hot.clear();closeMenu();closeDlg();win.hidden=true;twin.hidden=true;dirty=true}
+$('#bMin').onclick=minWin;$('#bClose').onclick=closeWin;twin.onclick=minWin;
+$('#bMax').onclick=function(){win.classList.toggle('max');place()};
+$('#icoDef').onclick=openWin;
+$('#startBtn').onclick=function(){var m=$('#smenu');m.hidden=!m.hidden};
+$('#smDef').onclick=openWin;$('#smAbout').onclick=function(){$('#smenu').hidden=true;openWin();about()};
+var tb=$('#tb'),drag=null;
+tb.addEventListener('pointerdown',function(e){if(e.target.closest('.cb')||win.classList.contains('max')||innerWidth<760)return;
+ var r=win.getBoundingClientRect(),bl=r.left-dx,bt=r.top-dy;
+ drag={sx:e.clientX-dx,sy:e.clientY-dy,x0:-bl-r.width+140,x1:innerWidth-bl-140,y0:-bt,y1:innerHeight-bt-90};tb.setPointerCapture(e.pointerId)});
+tb.addEventListener('pointermove',function(e){if(!drag)return;dx=Math.min(drag.x1,Math.max(drag.x0,e.clientX-drag.sx));dy=Math.min(drag.y1,Math.max(drag.y0,e.clientY-drag.sy));place()});
+tb.addEventListener('pointerup',function(){drag=null});
+tb.addEventListener('dblclick',function(e){if(!e.target.closest('.cb'))$('#bMax').click()});
+function clock(){$('#clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
+clock();setInterval(clock,15000);
+
+/* disk noise: short filtered clicks, only after the viewer turns it on */
+var actx=null,nbuf=null,lastB=0;
+function blip(){if(!soundOn||NOW-lastB<45)return;lastB=NOW;
+ try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();
+  if(!nbuf){nbuf=actx.createBuffer(1,900,actx.sampleRate/1);var d=nbuf.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1}
+  var s=actx.createBufferSource(),f=actx.createBiquadFilter(),g=actx.createGain(),t=actx.currentTime;
+  s.buffer=nbuf;f.type='bandpass';f.frequency.value=600+Math.random()*1800;f.Q.value=2;
+  g.gain.setValueAtTime(.05,t);g.gain.exponentialRampToValueAtTime(.001,t+.03);s.connect(f);f.connect(g);g.connect(actx.destination);s.start(t)}catch(e){}}
+
+/* main loop */
+function frame(ts){NOW=ts;var dt=Math.min(64,ts-(last||ts));last=ts;var V=running;
+ if(V&&!V.paused){V.el+=dt;
+  if(V.mode==='analyze'){V.scan+=dt/1000*Math.max(900,rate*8);if(V.scan>=N){V.scan=N;endAnalyze(V)}}
+  else if(V.mode==='defrag'){V.wait-=dt;var guard=0;
+   while(V.wait<=0&&guard++<40){blip();if(!step(V)){endDefrag(V);break}
+    var base=1000/rate,sk=V.seek>40?base*Math.min(2.5,V.seek/N*8):0;V.wait+=base*(.7+Math.random()*.6)+sk}}
+  if(running)V.m=calc(V);dirty=true}
+ if(hot.size){hot.forEach(function(e,k){if(e<=ts){hot.delete(k);dirty=true}})}
+ if(dirty){dirty=false;ui();draw()}
+ requestAnimationFrame(frame)}
+function fit(){var z=1;if(innerWidth>=900&&innerHeight>=700)z=Math.max(1,Math.min(2,innerWidth*.66/860,(innerHeight-80)/740));
+ Z=z>1.02?z:1;win.style.zoom=Z>1?Z:'';cv.width=Math.round(W*dpr*Z);cv.height=Math.round(H*dpr*Z);place();dirty=true}
+addEventListener('resize',fit);fit();
+ui();draw();requestAnimationFrame(frame);
+})();
+</script>
