@@ -252,7 +252,7 @@ function gen(V){
  files.forEach(function(f){D.runs[f.id]=runsOf(D,f)});
  return D;
 }
-function code(D,s){var b=D.blockAt[s];if(b===-2)return D.sys[s]===2?7:4;if(b===-1)return 1;var f=D.fileOf[b];return f===D.pf?6:(D.runs[f]>1?3:2)}
+function code(D,s,cur){var b=D.blockAt[s];if(b===-2)return D.sys[s]===2?7:4;if(b===-1)return 1;var f=D.fileOf[b];return f===D.pf?6:(b<cur||D.runs[f]<2?2:3)}
 
 function calc(V){var D=V.d,tr=0,ex=0,ff=0,i,r;
  for(i=0;i<D.files.length;i++){r=D.runs[i];tr+=r;ex+=r-1;if(r>1)ff++}
@@ -266,22 +266,21 @@ function calc(V){var D=V.d,tr=0,ex=0,ff=0,i,r;
 /* simulation step: compact files in order, evicting whatever sits in the way into the nearest free cell */
 var NOW=0,rate=25,hot=new Map();
 function ttl(){return Math.max(60,Math.min(320,1200/rate))}
-function move(D,from,to){var b=D.blockAt[from],f=D.fileOf[b];D.blockAt[from]=-1;D.blockAt[to]=b;D.slotOf[b]=to;D.runs[f]=runsOf(D,D.files[f]);
- var e=NOW+ttl();hot.set(from,e);hot.set(to,e)}
-function step(V){var D=V.d,t,f;
- while(V.i<V.used&&D.slotOf[V.i]===D.nonSys[V.i])V.i++;
- if(V.i>=V.used)return false;
+function move(D,from,to){var b=D.blockAt[from],f=D.fileOf[b];D.blockAt[from]=-1;D.blockAt[to]=b;D.slotOf[b]=to;D.runs[f]=runsOf(D,D.files[f]);}
+function step(V){var D=V.d,t,f,from;
+ if(V.i>=V.used){V.cur=-1;return false}
  t=D.nonSys[V.i];
- var from;
- if(D.blockAt[t]===-1){from=D.slotOf[V.i];V.seek=Math.abs(from-V.head);V.head=t;move(D,from,t);V.i++}
- else{f=t+1;while(D.blockAt[f]!==-1)f++;V.seek=Math.abs(t-V.head);V.head=f;move(D,t,f)}
+ if(D.slotOf[V.i]===t){V.cur=-1;V.i++;V.seek=0;V.quick=true;return true}
+ V.quick=false;
+ if(D.blockAt[t]===-1){from=D.slotOf[V.i];V.seek=Math.abs(from-V.head);V.head=t;move(D,from,t);V.i++;V.cur=-1}
+ else{f=t+1;while(D.blockAt[f]!==-1)f++;V.seek=Math.abs(t-V.head);V.head=f;move(D,t,f);V.cur=t}
  return true}
 
 /* state */
 var running=null,sel=VOLS[0],dirty=true,soundOn=false,last=0;
 function initVol(V){if(!V.base)V.base={chunk:V.chunk,contig:V.contig,fill:V.fill};var B=V.base;
  V.seed=(Math.random()*4294967296)>>>0;V.chunk=Math.max(2,B.chunk+Math.floor(Math.random()*3)-1);V.contig=B.contig*(.4+Math.random()*1.2);V.fill=B.fill+(Math.random()-.5)*.1;
- V.d=gen(V);V.mode=null;V.paused=false;V.scan=N;V.i=0;V.used=V.d.used;V.wait=0;V.seek=0;V.head=0;V.el=0;V.m=calc(V)}
+ V.d=gen(V);V.mode=null;V.paused=false;V.scan=N;V.i=0;V.used=V.d.used;V.wait=0;V.seek=0;V.head=0;V.cur=-1;V.quick=false;V.el=0;V.m=calc(V)}
 VOLS.forEach(initVol);
 
 var cv=$('#cv'),ctx=cv.getContext('2d'),dpr=Math.min(window.devicePixelRatio||1,2);
@@ -290,7 +289,7 @@ cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
 function draw(){var V=sel,D=V.d,c=ctx,lk=-1,s,k,h;
  c.setTransform(cv.width/W,0,0,cv.height/H,0,0);c.fillStyle=GRID;c.fillRect(0,0,W,H);
  for(s=0;s<N;s++){
-  if(V.mode==='analyze'&&s>=V.scan)k=0;else{h=hot.get(s);k=(h&&h>NOW)?5:code(D,s)}
+  if(V.mode==='analyze'&&s>=V.scan)k=0;else{k=(s===V.cur)?5:code(D,s,V.i)}
   if(k!==lk){c.fillStyle=PAL[k];lk=k}
   c.fillRect((s%COLS)*P+1,((s/COLS)|0)*P+1,P-1,P-1)}}
 
@@ -327,14 +326,14 @@ function ui(){var V=sel,r=!!running;rows();
 
 /* actions */
 function doAnalyze(){if(running)return;var V=sel;V.mode='analyze';V.scan=0;V.paused=false;V.el=0;running=V;hot.clear();dirty=true}
-function doDefrag(){if(running)return;var V=sel;V.mode='defrag';V.i=0;V.used=V.d.used;V.wait=0;V.seek=0;V.head=0;V.paused=false;V.el=0;running=V;dirty=true}
+function doDefrag(){if(running)return;var V=sel;V.mode='defrag';V.i=0;V.used=V.d.used;V.wait=0;V.seek=0;V.head=0;V.cur=-1;V.paused=false;V.el=0;running=V;dirty=true}
 function doPause(){if(running){running.paused=!running.paused;dirty=true}}
-function doStop(){if(!running)return;var V=running;if(V.mode==='analyze')V.scan=N;V.mode=null;V.paused=false;running=null;V.m=calc(V);dirty=true}
+function doStop(){if(!running)return;var V=running;if(V.mode==='analyze')V.scan=N;V.cur=-1;V.mode=null;V.paused=false;running=null;V.m=calc(V);dirty=true}
 function endAnalyze(V){V.mode=null;running=null;V.m=calc(V);dirty=true;
  var need=V.m.total>=10;
  dlg({title:'Disk Defragmenter',html:'<div class="drow">'+INFO+'<div><p style="margin:0 0 10px">Analysis is complete for: '+V.name+' ('+V.letter+':)</p><p style="margin:0"><b>'+(need?'You should defragment this volume.':'You do not need to defragment this volume.')+'</b></p></div></div>',
   btns:[{l:'View Report',fn:doReport},{l:'Defragment',def:need,fn:doDefrag},{l:'Close',def:!need}]})}
-function endDefrag(V){V.mode=null;running=null;V.m=calc(V);hot.clear();dirty=true;
+function endDefrag(V){V.cur=-1;V.mode=null;running=null;V.m=calc(V);hot.clear();dirty=true;
  dlg({title:'Disk Defragmenter',html:'<div class="drow">'+INFO+'<div><p style="margin:0">Defragmentation is complete for: '+V.name+' ('+V.letter+':).</p></div></div>',
   btns:[{l:'View Report',fn:doReport},{l:'Close',def:true}]})}
 
@@ -426,7 +425,7 @@ function frame(ts){NOW=ts;var dt=Math.min(64,ts-(last||ts));last=ts;var V=runnin
   if(V.mode==='analyze'){V.scan+=dt/1000*Math.max(900,rate*8);if(V.scan>=N){V.scan=N;endAnalyze(V)}}
   else if(V.mode==='defrag'){V.wait-=dt;var guard=0;
    while(V.wait<=0&&guard++<40){blip();if(!step(V)){endDefrag(V);break}
-    var base=1000/rate,sk=V.seek>40?base*Math.min(2.5,V.seek/N*8):0;V.wait+=base*(.7+Math.random()*.6)+sk}}
+    var base=1000/rate*(V.quick?.4:1),sk=V.seek>40?base*Math.min(2.5,V.seek/N*8):0;V.wait+=base*(.7+Math.random()*.6)+sk}}
   if(running)V.m=calc(V);dirty=true}
  if(hot.size){hot.forEach(function(e,k){if(e<=ts){hot.delete(k);dirty=true}})}
  if(dirty){dirty=false;ui();draw()}
