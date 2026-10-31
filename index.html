@@ -366,7 +366,7 @@ function dlg(o){lastF=document.activeElement;dlgEl.className='dlg'+(o.wide?' wid
   e.onclick=function(){closeDlg();if(b.fn)b.fn()};bx.appendChild(e);if(b.def&&!b.off)def=e});
  dlgEl.querySelector('[data-x]').onclick=closeDlg;dlgEl.hidden=false;(def||bx.firstChild).focus()}
 function closeDlg(){dlgEl.hidden=true;dlgEl.innerHTML='';if(lastF&&lastF.focus){try{lastF.focus()}catch(e){}}}
-function about(){dlg({title:'About Disk Defragmenter',html:'<div class="drow">'+INFO+'<div><p style="margin:0 0 8px"><b>Disk Defragmenter (simulation)</b></p><p style="margin:0 0 8px">Nothing here touches a real disk. The three volumes are made up, and the map moves blocks with a simple compaction pass: each file is packed to the front, and anything in the way is nudged to the nearest free cell.</p><p style="margin:0">Turn on Disk noise in the View menu for the seek clicks.</p></div></div>',btns:[{l:'OK',def:true}]})}
+function about(){dlg({title:'About Disk Defragmenter',html:'<div class="drow">'+INFO+'<div><p style="margin:0 0 8px"><b>Disk Defragmenter</b></p><p style="margin:0 0 8px">Remember the satisfying experience of defragging a disk? This is a nostalgic little toy that emulates that experience. Nothing here touches a real disk, so click around and watch the blocks shuffle into place as much as you like.</p><p style="margin:0">Tip: turn on Disk noise in the View menu for those satisfying seek clicks.</p><p style="margin:8px 0 0">Developed by <a href="https://standefer.com" target="_blank" rel="noopener">Robert Standefer</a></p></div></div>',btns:[{l:'OK',def:true}]})}
 
 /* buttons */
 B.an.onclick=doAnalyze;B.df.onclick=doDefrag;B.pa.onclick=doPause;B.st.onclick=doStop;B.rp.onclick=doReport;
