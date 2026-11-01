@@ -221,6 +221,7 @@ select{height:21px;border:1px solid var(--edge);background:#fff;padding:0 2px}
   <div class="sh">Owner</div>
   <button type="button" id="smDef"><svg viewBox="0 0 36 36" aria-hidden="true"><rect x="3" y="6" width="30" height="24" rx="2" fill="#fff" stroke="#315a9e" stroke-width="2"/><rect x="7" y="10" width="7" height="7" fill="#5b8def"/><rect x="16" y="10" width="7" height="7" fill="#e5525b"/><rect x="7" y="19" width="7" height="7" fill="#e5525b"/></svg>Disk Defragmenter</button>
   <button type="button" id="smAbout"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="14" fill="#2d6fe0" stroke="#fff" stroke-width="2"/><path d="M18 16v9" stroke="#fff" stroke-width="3"/><circle cx="18" cy="11" r="2" fill="#fff"/></svg>About this simulator</button>
+  <button type="button" id="smTxt"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M8 3h14l7 7v23H8z" fill="#fff" stroke="#6b7f99" stroke-width="1.5"/><path d="M22 3v7h7" fill="#dfe8f2" stroke="#6b7f99" stroke-width="1.5"/><path d="M12 15h13M12 19h13M12 23h13M12 27h8" stroke="#8aa0bd" stroke-width="1.5"/></svg>README.txt</button>
  </div>
  <div class="tbi">
   <button class="start" id="startBtn" type="button">start</button>
@@ -440,7 +441,7 @@ var README="Disk Defragmenter\n\nRemember the satisfying experience of defraggin
 var np=$('#np');$('#npT').value=README;
 function openNp(){np.hidden=false;$('#npT').focus()}
 function closeNp(){np.hidden=true;$('#icoTxt').focus()}
-$('#icoTxt').onclick=openNp;$('#npX').onclick=closeNp;
+$('#icoTxt').onclick=openNp;$('#smTxt').onclick=function(){$('#smenu').hidden=true;openNp()};$('#npX').onclick=closeNp;
 np.addEventListener('keydown',function(e){if(e.key==='Escape')closeNp()});
 function clock(){$('#clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
 clock();setInterval(clock,15000);
