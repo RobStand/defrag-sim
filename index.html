@@ -394,7 +394,7 @@ function dlg(o){lastF=document.activeElement;dlgEl.className='dlg'+(o.wide?' wid
   e.onclick=function(){closeDlg();if(b.fn)b.fn()};bx.appendChild(e);if(b.def&&!b.off)def=e});
  dlgEl.querySelector('[data-x]').onclick=closeDlg;dlgEl.hidden=false;(def||bx.firstChild).focus()}
 function closeDlg(){dlgEl.hidden=true;dlgEl.innerHTML='';if(lastF&&lastF.focus){try{lastF.focus()}catch(e){}}}
-function about(){dlg({title:'About Disk Defragmenter',html:'<div class="drow">'+INFO+'<div><p style="margin:0 0 8px"><b>Disk Defragmenter</b></p><p style="margin:0 0 8px">Remember the satisfying experience of defragging a disk? This is a nostalgic little toy that emulates that experience. Nothing here touches a real disk, so click around and watch the blocks shuffle into place as much as you like.</p><p style="margin:0">Tip: turn on Disk noise in the View menu for those satisfying seek clicks.</p><p style="margin:8px 0 0">Developed by <a href="https://standefer.com" target="_blank" rel="noopener">Robert Standefer</a></p></div></div>',btns:[{l:'OK',def:true}]})}
+function about(){dlg({title:'About Disk Defragmenter',html:'<div class="drow">'+INFO+'<div><p style="margin:0 0 8px"><b>Disk Defragmenter</b></p><p style="margin:0 0 8px">Remember the satisfying experience of defragging a disk? This is a bit of nostalgia that emulates that experience. Nothing here touches a real disk, so click around and watch the blocks shuffle into place as much as you like.</p><p style="margin:0">Tip: turn on Disk noise in the View menu for those satisfying seek clicks.</p><p style="margin:8px 0 0">Developed by <a href="https://standefer.com" target="_blank" rel="noopener">Robert Standefer</a></p></div></div>',btns:[{l:'OK',def:true}]})}
 
 /* buttons */
 B.an.onclick=doAnalyze;B.df.onclick=doDefrag;B.pa.onclick=doPause;B.st.onclick=doStop;B.rp.onclick=doReport;
@@ -436,8 +436,8 @@ tb.addEventListener('pointermove',function(e){if(!drag)return;dx=Math.min(drag.x
 tb.addEventListener('pointerup',function(){drag=null});
 tb.addEventListener('dblclick',function(e){if(!e.target.closest('.cb'))$('#bMax').click()});
 /* README.txt (Notepad) */
-var README='Disk Defragmenter\r\n\r\nRemember the satisfying experience of defragging a disk? This is a nostalgic little toy that emulates that experience. Nothing here touches a real disk, so click around and watch the blocks shuffle into place as much as you like.\r\n\r\nTip: turn on Disk noise in the View menu for those satisfying seek clicks.\r\n\r\nDeveloped by Robert Standefer (https://standefer.com)';
-var np=$('#np');$('#npT').value=README.replace(/\r\n/g,'\n');
+var README="Disk Defragmenter\n\nRemember the satisfying experience of defragging a disk? This is a bit of nostalgia that emulates that experience. Nothing here touches a real disk, so click around and watch the blocks shuffle into place as much as you like.\n\nTip: turn on Disk noise in the View menu for those satisfying seek clicks.\n\nDeveloped by Robert Standefer (https://standefer.com)";
+var np=$('#np');$('#npT').value=README;
 function openNp(){np.hidden=false;$('#npT').focus()}
 function closeNp(){np.hidden=true;$('#icoTxt').focus()}
 $('#icoTxt').onclick=openNp;$('#npX').onclick=closeNp;
