@@ -111,6 +111,13 @@ select{height:21px;border:1px solid var(--edge);background:#fff;padding:0 2px}
 .prog i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,#2fc335 0 7px,transparent 7px 9px)}
 #stTime{min-width:38px;text-align:right;font-variant-numeric:tabular-nums}
 
+.np{position:absolute;z-index:25;left:24px;top:40px;width:min(480px,calc(100% - 48px));background:var(--frame);border-radius:8px 8px 0 0;padding:0 3px 3px;box-shadow:2px 4px 12px rgba(0,0,0,.5)}
+.np .tb{height:26px}.np .tt{font-size:12px}
+.np .cb{width:19px;height:19px}.np .cb svg{width:17px;height:17px}
+.npm{display:flex;background:var(--face);font:11px var(--ui);padding:1px 2px;border-bottom:1px solid var(--face-dk)}
+.npm span{padding:2px 6px}
+.np textarea{display:block;width:100%;height:240px;resize:none;border:0;border-top:1px solid var(--face-dk);outline:0;background:#fff;color:#000;padding:2px 4px;font:13px/1.25 "Lucida Console",Consolas,"DejaVu Sans Mono",monospace}
+.stage{position:relative}
 /* dialogs */
 .dlg{position:absolute;z-index:30;left:50%;top:70px;transform:translateX(-50%);width:min(340px,92%);background:var(--frame);border-radius:8px 8px 0 0;padding:0 3px 3px;box-shadow:2px 4px 12px rgba(0,0,0,.5)}
 .dlg.wide{width:min(480px,94%);top:34px}
@@ -153,8 +160,14 @@ select{height:21px;border:1px solid var(--edge);background:#fff;padding:0 2px}
   <div class="icons">
    <button class="dicon" id="icoBin" type="button"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M9 11h18l-2 21H11z" fill="#dfe8f2" stroke="#6b7f99" stroke-width="1.5"/><path d="M7 8h22v3H7z" fill="#b9c8dc" stroke="#6b7f99" stroke-width="1.5"/><path d="M14 14l1 15M18 14v15M22 14l-1 15" stroke="#6b7f99"/></svg><span>Recycle Bin</span></button>
    <button class="dicon" id="icoDef" type="button"><svg viewBox="0 0 36 36" aria-hidden="true"><rect x="3" y="6" width="30" height="24" rx="2" fill="#fff" stroke="#315a9e" stroke-width="1.5"/><g><rect x="6" y="9" width="5" height="5" fill="#5b8def"/><rect x="12" y="9" width="5" height="5" fill="#e5525b"/><rect x="18" y="9" width="5" height="5" fill="#5b8def"/><rect x="24" y="9" width="5" height="5" fill="#e5525b"/><rect x="6" y="15" width="5" height="5" fill="#e5525b"/><rect x="12" y="15" width="5" height="5" fill="#5b8def"/><rect x="18" y="15" width="5" height="5" fill="#5b8def"/><rect x="6" y="21" width="5" height="5" fill="#5b8def"/><rect x="12" y="21" width="5" height="5" fill="#5b8def"/></g></svg><span>Disk Defragmenter</span></button>
+   <button class="dicon" id="icoTxt" type="button"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M8 3h14l7 7v23H8z" fill="#fff" stroke="#6b7f99" stroke-width="1.5"/><path d="M22 3v7h7" fill="#dfe8f2" stroke="#6b7f99" stroke-width="1.5"/><path d="M12 15h13M12 19h13M12 23h13M12 27h8" stroke="#8aa0bd" stroke-width="1.5"/></svg><span>README.txt</span></button>
   </div>
   <div class="stage">
+   <div class="np" id="np" hidden role="dialog" aria-label="README.txt - Notepad">
+    <div class="tb"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1h7l3 3v11H3z" fill="#fff" stroke="#173f9c"/><path d="M5 7h6M5 9h6M5 11h6" stroke="#5b8def"/></svg><span class="tt">README.txt - Notepad</span><div class="cap"><button class="cb x" id="npX" type="button" aria-label="Close"><svg viewBox="0 0 21 21"><path d="M6 6l9 9M15 6l-9 9" stroke="#fff" stroke-width="2.4" stroke-linecap="square"/></svg></button></div></div>
+    <div class="npm"><span>File</span><span>Edit</span><span>Format</span><span>View</span><span>Help</span></div>
+    <textarea id="npT" readonly spellcheck="false" aria-label="README.txt"></textarea>
+   </div>
    <div class="win" id="win" role="application" aria-label="Disk Defragmenter">
     <div class="tb" id="tb">
      <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="2" width="14" height="12" rx="1" fill="#fff" stroke="#173f9c"/><rect x="3" y="4" width="3" height="3" fill="#5b8def"/><rect x="7" y="4" width="3" height="3" fill="#e5525b"/><rect x="11" y="4" width="2" height="3" fill="#5b8def"/><rect x="3" y="8" width="3" height="3" fill="#e5525b"/><rect x="7" y="8" width="3" height="3" fill="#5b8def"/></svg>
@@ -422,6 +435,13 @@ tb.addEventListener('pointerdown',function(e){if(e.target.closest('.cb')||win.cl
 tb.addEventListener('pointermove',function(e){if(!drag)return;dx=Math.min(drag.x1,Math.max(drag.x0,e.clientX-drag.sx));dy=Math.min(drag.y1,Math.max(drag.y0,e.clientY-drag.sy));place()});
 tb.addEventListener('pointerup',function(){drag=null});
 tb.addEventListener('dblclick',function(e){if(!e.target.closest('.cb'))$('#bMax').click()});
+/* README.txt (Notepad) */
+var README='Disk Defragmenter\r\n\r\nRemember the satisfying experience of defragging a disk? This is a nostalgic little toy that emulates that experience. Nothing here touches a real disk, so click around and watch the blocks shuffle into place as much as you like.\r\n\r\nTip: turn on Disk noise in the View menu for those satisfying seek clicks.\r\n\r\nDeveloped by Robert Standefer (https://standefer.com)';
+var np=$('#np');$('#npT').value=README.replace(/\r\n/g,'\n');
+function openNp(){np.hidden=false;$('#npT').focus()}
+function closeNp(){np.hidden=true;$('#icoTxt').focus()}
+$('#icoTxt').onclick=openNp;$('#npX').onclick=closeNp;
+np.addEventListener('keydown',function(e){if(e.key==='Escape')closeNp()});
 function clock(){$('#clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
 clock();setInterval(clock,15000);
 
